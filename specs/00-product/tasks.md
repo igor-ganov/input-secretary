@@ -6,14 +6,14 @@ foundation and the order.
 
 ## Phase 0 — foundation
 
-- [ ] T0.1 Repository: public `igor-ganov/input-secretary`, `main` + `develop`, branch protection, specs committed. — NFR-5
+- [x] T0.1 Repository: public `igor-ganov/input-secretary`, `main` + `develop`, branch protection, specs committed. — NFR-5
   - The repository was republished as public with a clean history (2026-11-24) so that rulesets and CodeQL are available; rulesets on `main` and `develop` require a pull request and green `Lint, typecheck, unit` and `Web E2E (Playwright)`.
 - [x] T0.2 bun workspaces monorepo: `apps/core`, `apps/web`, `apps/bridge`, `packages/contracts`, `packages/domain-kit`; strict `tsconfig`, Biome + eslint functional rules. Test: `bun run lint` and `bun run typecheck` pass on an empty feature. — NFR-6, design §2
 - [x] T0.3 Test harness on bun only (`packageManager: bun@1.4.5`, `bun --bun`): Vitest with `@cloudflare/vitest-plugin` for core, Vitest for packages, Playwright for web, local Worker through Miniflare. Test: one failing-then-green smoke test per app. Notes: TypeScript stays on 6.0 because `typescript-eslint` and `@astrojs/check` do not support 7; package projects use the Vitest `threads` pool because `forks` fails under bun. — design §11
-- [ ] T0.4 CI (GitHub Actions): lint, typecheck, unit, CodeQL, gitleaks, osv-scanner on every PR; preview deploy per PR and production deploy on `main` via `bun --bun wrangler` with a scoped Cloudflare API token created in the dashboard; the deploy step must be proven to run on bun without node. Test: PR shows all checks and a preview URL. — NFR-1, NFR-5
-  - Done on `feature/phase-0`: `ci.yml` (lint, typecheck, unit), `security.yml` (gitleaks, osv-scanner, CodeQL). CodeQL runs only when the repo variable `CODEQL_ENABLED` is `true`, because a private repository needs GitHub Code Security.
+- [x] T0.4 CI (GitHub Actions): lint, typecheck, unit, CodeQL, gitleaks, osv-scanner on every PR; preview deploy per PR and production deploy on `main` via `bun --bun wrangler` with a scoped Cloudflare API token created in the dashboard; the deploy step must be proven to run on bun without node. Test: PR shows all checks and a preview URL. — NFR-1, NFR-5
+  - Done: `ci.yml` (lint, typecheck, unit, web E2E, deploy) and `security.yml` (gitleaks, osv-scanner, CodeQL). CodeQL runs when the repo variable `CODEQL_ENABLED` is `true`; it is on since the repository became public.
   - Done: scoped token `input-secretary-ci-deploy` (Workers Scripts: Edit, Account Settings: Read) in the GitHub secret `CLOUDFLARE_API_TOKEN`; the `deploy` job in `ci.yml` runs on bun after lint, unit and E2E, then smoke-tests the target. `develop` deploys to `input-secretary-dev.igor-ganov.workers.dev`, a PR gets the alias `pr-<n>-input-secretary-dev.igor-ganov.workers.dev`.
-  - Not done: the first production deploy from `main`. T0.4 stays open until it is green.
+  - Done: production deploys from `main` to `input-secretary.igor-ganov.workers.dev` (first green run 2026-11-23); each deploy is smoke-tested (REST echo and the web shell).
 - [x] T0.5 Operation registry skeleton in `packages/contracts` + projection to REST (Hono) and MCP (Streamable HTTP) with one `health.echo` operation. Test: parity test calls echo through REST and MCP and gets identical output. — design §4, AC-11.1
 
 ## Phase 0 — spikes (results recorded in `specs/00-product/spikes.md`)
