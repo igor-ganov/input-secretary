@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Lint, typecheck, unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+
+  e2e:
+    name: Web E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun --bun playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: bun run e2e
+
+  deploy:
+    name: Deploy
+    needs: [verify, e2e]
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter @input-secretary/web build
+      - name: Upload the PR preview
+        if: github.event_name == 'pull_request'
+        working-directory: apps/core
+        run: |
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/input-secretary-dev/settings")
+          case "$status" in
+            200)
+              bun --bun wrangler versions upload --env dev --preview-alias "pr-${PR_NUMBER}"
+              echo "TARGET_HOST=pr-${PR_NUMBER}-input-secretary-dev.igor-ganov.workers.dev" >> "$GITHUB_ENV"
+              ;;
+            404)
+              echo "::notice::No preview yet: the first deploy from develop creates the dev Worker."
+              ;;
+            *)
+              echo "::error::Cloudflare answered ${status} when checking the dev Worker."
+              exit 1
+              ;;
+          esac
+      - name: Deploy dev
+        if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+        working-directory: apps/core
+        run: |
+          bun --bun wrangler deploy --env dev
+          echo "TARGET_HOST=input-secretary-dev.igor-ganov.workers.dev" >> "$GITHUB_ENV"
+      - name: Deploy production
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: apps/core
+        run: |
+          bun --bun wrangler deploy --env production
+          echo "TARGET_HOST=input-secretary.igor-ganov.workers.dev" >> "$GITHUB_ENV"
+      - name: Smoke test the deployment
+        if: env.TARGET_HOST != ''
+        run: |
+          curl --fail-with-body --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 \
+            -H 'content-type: application/json' -d '{"message":"smoke"}' \
+            "https://${TARGET_HOST}/api/health/echo" | grep -q '"message":"smoke"'
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 \
+            "https://${TARGET_HOST}/" | grep -q 'Input Secretary'
+          echo "Deployed: https://${TARGET_HOST}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Show the preview URL on the PR
+        if: github.event_name == 'pull_request' && env.TARGET_HOST != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "$PR_NUMBER" -R "$GITHUB_REPOSITORY" --edit-last --create-if-none --body "Preview: https://${TARGET_HOST}"

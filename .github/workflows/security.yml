@@ -1,0 +1,64 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Scan the history
+        env:
+          GITLEAKS_VERSION: "8.30.1"
+        run: |
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          curl -fsSLO "$base/$archive"
+          curl -fsSL "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt" | grep " $archive$" | sha256sum -c -
+          tar -xzf "$archive" gitleaks
+          ./gitleaks git --redact --no-banner --exit-code 1 .
+
+  osv-scanner:
+    name: Dependency audit (osv-scanner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Scan the lockfile
+        env:
+          OSV_VERSION: "2.7.1"
+        run: |
+          binary="osv-scanner_linux_amd64"
+          base="https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}"
+          curl -fsSLO "$base/$binary"
+          curl -fsSL "$base/osv-scanner_SHA256SUMS" | grep " $binary$" | sha256sum -c -
+          chmod +x "$binary"
+          "./$binary" scan source --lockfile=bun.lock
+
+  codeql:
+    name: SAST (CodeQL)
+    # CodeQL on a private repository needs GitHub Code Security; enable with the repo variable.
+    if: ${{ !github.event.repository.private || vars.CODEQL_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4

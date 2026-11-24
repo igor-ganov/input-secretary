@@ -1,0 +1,22 @@
+{
+  "name": "@input-secretary/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@input-secretary/contracts": "workspace:*",
+    "@input-secretary/domain-kit": "workspace:*",
+    "@modelcontextprotocol/server": "2.4.0",
+    "hono": "^4.13.21",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.9.1",
+    "@cloudflare/workers-types": "^5.20261123.1",
+    "@modelcontextprotocol/client": "2.4.0",
+    "wrangler": "^4.167.0"
+  }
+}

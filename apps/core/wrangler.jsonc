@@ -1,0 +1,23 @@
+{
+  // The top level is the local test configuration; deployments use the named environments.
+  "name": "input-secretary-core",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "env": {
+    "dev": {
+      "name": "input-secretary-dev",
+      "workers_dev": true,
+      "preview_urls": true,
+      "vars": { "PUBLIC_HOST": "input-secretary-dev.igor-ganov.workers.dev" },
+      "assets": { "directory": "../web/dist", "run_worker_first": ["/api/*", "/mcp"] }
+    },
+    "production": {
+      "name": "input-secretary",
+      "workers_dev": true,
+      "preview_urls": false,
+      "vars": { "PUBLIC_HOST": "input-secretary.igor-ganov.workers.dev" },
+      "assets": { "directory": "../web/dist", "run_worker_first": ["/api/*", "/mcp"] }
+    }
+  }
+}

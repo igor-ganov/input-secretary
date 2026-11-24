@@ -1,0 +1,21 @@
+{
+  "name": "@input-secretary/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 bun --bun astro dev",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 bun --bun astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 bun --bun astro preview --port 4329",
+    "typecheck": "ASTRO_TELEMETRY_DISABLED=1 bun --bun astro check",
+    "e2e": "bun --bun playwright test"
+  },
+  "dependencies": {
+    "astro": "^7.4.13",
+    "lit": "^3.3.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@playwright/test": "^1.65.1"
+  }
+}

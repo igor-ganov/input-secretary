@@ -1,0 +1,29 @@
+{
+  "name": "input-secretary",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.5",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "bun --bun biome check . && bun --bun eslint .",
+    "lint:fix": "bun --bun biome check --write .",
+    "typecheck": "bun run --filter '*' typecheck",
+    "test": "bun --bun vitest run",
+    "e2e": "bun run --filter @input-secretary/web e2e"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.8",
+    "@eslint/js": "^10.0.0",
+    "eslint": "^10.15.0",
+    "eslint-plugin-functional": "^10.0.1",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.74.0",
+    "vitest": "^5.1.1"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.2"
+  }
+}

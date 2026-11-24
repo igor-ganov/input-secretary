@@ -1,0 +1,27 @@
+{
+  "name": "spike-s3-web-push",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "test": "bun --bun vitest run",
+    "vapid": "bun scripts/vapid.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "deliver": "bun --bun scripts/deliver.ts",
+    "e2e": "bun --bun scripts/bun-only-e2e.ts"
+  },
+  "dependencies": {
+    "@block65/webcrypto-web-push": "2.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.9.0",
+    "@cloudflare/workers-types": "^5.20261121.1",
+    "@vitest/runner": "^4.1.0",
+    "@vitest/snapshot": "^4.1.0",
+    "playwright": "^1.65.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.166.0"
+  },
+  "packageManager": "bun@1.4.5"
+}
