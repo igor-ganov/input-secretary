@@ -22,6 +22,7 @@ foundation and the order.
 - [ ] S2 Yahoo: blocked until the product has a domain + privacy policy and Yahoo approves OAuth access. — design §5, AC-2.2
 - [x] S3 Web Push from workerd to Chrome and Firefox, rerun on bun 1.4.5 only. — AC-5.4
 - [x] S4 Pin A2A v1.0 and `@agentclientprotocol/sdk` versions; hello-world agent card and ACP echo agent. — AC-11.2, AC-11.3
+- [ ] S5 Outlook on the web through a browser-automation MCP from bun: record stable list-row and reading-pane attributes with the allow-listed tools only; read the 20 newest messages printing counts only. — design §5.1, AC-2.8, AC-2.9
 
 ## Capability specs, in order
 
@@ -36,5 +37,6 @@ foundation and the order.
 | 7 | `07-stats` | 04 | US-10 |
 | 8 | `08-interfaces` (A2A, ACP; REST/MCP grow with each spec) | 01, S4 | US-11 |
 | 9 | Bridge: Proton | 02, 08 | US-2 Proton |
+| 10 | Bridge: Outlook on the web (D7) | 02, 04, S5 | AC-2.8, AC-2.9 |
 
 Done for the product = every AC in `requirements.md` linked to a green test in CI, and the parity scenario (AC-11.4) green on all four interfaces.

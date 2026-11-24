@@ -33,6 +33,7 @@ Satisfies: `requirements.md` (US-1…US-11, NFR-1…NFR-6, D1…D6)
             Provider APIs (Graph, Gmail, Todoist,   │
             Discord REST, Yahoo IMAP)       local bridge (bun CLI on user PC)
                                              ├─ Proton Bridge IMAP → /bridge/ingest
+                                             ├─ browser MCP → Outlook web UI → /bridge/ingest
                                              └─ `secretary acp` stdio ⇄ /bridge/acp
 ```
 
@@ -47,6 +48,7 @@ Satisfies: `requirements.md` (US-1…US-11, NFR-1…NFR-6, D1…D6)
 | Agent loop on the Messages API (Tool Runner, `@anthropic-ai/sdk`) inside the Worker | Agent tools are tenant-scoped operations living in our DO; "What next" needs low latency; BYO key (D5) works with a per-request client | Claude Managed Agents: Anthropic-hosted loop + sandbox, but tools would call back into us anyway, per-user BYO keys would need agents provisioned in each user's org, and session runtime is billed on top of tokens |
 | Knowledge-base MCP via the Claude API MCP connector (`mcp_servers` + `mcp_toolset`) | Anthropic calls the user's remote MCP servers; we only pass URL + token (AC-7.2) | Our own MCP client in the Worker: more code, same result |
 | Local bridge for Proton and ACP | Proton Bridge is IMAP on `127.0.0.1`; ACP is stdio by spec; both need a process on the user's PC (D1) | Hosting Proton Bridge in the cloud: needs the user's Proton password server-side |
+| Work mailbox through the browser UI on the bridge (D7) | The tenant blocks user consent to Graph mail scopes, while the user already reads the mailbox in a browser; the bridge reads what the user sees, with no credential leaving the browser | Reusing an allow-listed mail client's ID, or replaying the web session's token from the cloud: impersonates another application and moves a credential out of the user's control |
 
 ## 2. Repository layout (feature-based, DDD)
 
@@ -57,7 +59,7 @@ apps/
       tenancy/       domain · application · adapters (passkey, D1)
       sources/       domain (Source, Channel, Cursor) · ports (SourceConnector)
         connectors/  graph-mail · graph-teams · graph-calendar · gmail · todoist ·
-                     discord · yahoo-imap · bridge-ingest
+                     discord · yahoo-imap · bridge-ingest (Proton, Outlook web)
       categories/    domain (Category, routing) · application
       collection/    domain (CollectionRun, CutOff) · workflow · scheduler
       briefing/      domain (Briefing sections) · application
@@ -70,7 +72,7 @@ apps/
     src/shared/      operation registry, crypto, result types, clock
   web/         Astro pages + Lit components (PWA, service worker)
     src/features/<same names>/components
-  bridge/      bun CLI: `secretary pair|proton|acp`
+  bridge/      bun CLI: `secretary pair|proton|owa|acp`
 packages/
   contracts/   zod schemas for every operation (single source for OpenAPI, MCP, A2A)
   domain-kit/  pure helpers shared by core and bridge (Result, ids, time)
@@ -139,6 +141,16 @@ type SourceConnector = {
 | Discord | Platform bot, REST `GET /channels/{id}/messages?after=` for opted-in guild channels | snowflake per channel | DMs to the bot need the Gateway → later task; personal DMs impossible (requirements §2) |
 | Yahoo | OAuth `mail-r`, then IMAP over `cloudflare:sockets` TLS, `UID SEARCH UID n:*` | UIDVALIDITY + UID | **gated by Yahoo's commercial approval (S2)**; the workerd IMAP client is built only after approval |
 | Proton | bridge reads Proton Bridge IMAP with `imapflow`, POSTs `RawItem[]` to `/bridge/ingest` | kept by the bridge, acknowledged by core | items arrive whenever the PC is on; the run includes what has arrived since the cut-off |
+| Outlook on the web (D7) | on a `collect` job the bridge drives the user's browser through a browser-automation MCP server (stdio, configured on the bridge), reads the message list and the opened messages, POSTs `RawItem[]` to `/bridge/ingest` | newest `receivedAt` + the message ids seen at that time, kept by core | see §5.1 |
+
+### 5.1 Outlook on the web through the bridge (D7)
+
+- **Job flow.** The bridge keeps a long poll on `GET /bridge/jobs`. When a run includes a bridge source, the run's step for it enqueues a `collect` job (source id, cursor, deadline) and waits with `step.waitForEvent` for the bridge's ingest acknowledgement; on timeout the source is `failed: bridge_offline` for that run only (AC-2.8, AC-4.2).
+- **Reading.** The bridge opens or reuses one mail tab, brings it to the front only for the read (a hidden tab renders no list), waits for the message list by an element signal (no sleeps), and reads rows top-down until it reaches the cursor. For each new row it opens the message and takes sender, recipients, subject, received time, a body text excerpt and a deep link; then it restores the previously active tab.
+- **Selectors.** All markup knowledge lives in one adapter file of selectors and pure parse functions, unit-tested against saved, scrubbed DOM fixtures; S5 records which attributes are stable. A markup change makes the parse fail loudly (`failed: markup_changed`), never ingest partial data silently.
+- **Signed out.** If the page shows a sign-in form, the source becomes `needs_reconnect` with reason `signed_out`; the bridge never types credentials.
+- **Boundaries (AC-2.9).** The bridge calls only navigation, wait, query and click tools of the browser MCP; it never evaluates scripts that read `document.cookie`, storage or network headers, and the adapter has a unit test that the tool list it uses is exactly that allow-list.
+- **MCP config.** The browser MCP server is a local stdio command in the bridge config (`secretary owa configure`), never sent to core.
 
 Credentials: OAuth tokens and app passwords are encrypted with the tenant's data key (AES-GCM via WebCrypto); the data key is wrapped by a KEK held as a Worker secret and stored in D1 (envelope encryption, NFR-1). Token refresh happens inside the connector step; a refresh failure sets `needs_reconnect` (AC-2.4).
 
@@ -202,6 +214,7 @@ lint (Biome + eslint-plugin-functional rules from `functional-frontend`), `tsc -
 |-------|----------|----------------|
 | S1 | Graph Teams chat read with delegated `Chat.Read` on a personal and a work tenant | messages since T returned for both, or admin-consent requirement documented |
 | S2 | IMAP over `cloudflare:sockets` against Yahoo | UID SEARCH + FETCH headers works in workerd; else Yahoo moves to the bridge |
+| S5 | Outlook on the web read through a browser-automation MCP from bun | stable ids and attributes for list rows and the reading pane recorded; 20 newest messages read with counts only printed, no content |
 | S3 | Web Push from workerd (VAPID + aes128gcm with WebCrypto) | push delivered to Chrome and Firefox |
 | S4 | A2A v1.0 and ACP SDK versions | pinned versions + a hello-world for each |
 

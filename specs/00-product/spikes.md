@@ -25,6 +25,7 @@ Findings:
 - **Root cause of the work-tenant block (2026-11-23).** The tenant uses "Let Microsoft manage your consent settings". Under it, users cannot self-consent to mail, calendar and chat permissions (`Mail.Read`, `Calendars.Read`, `Chat.Read`, `IMAP.AccessAsUser.All`, ...), except for six allowlisted mail clients: Apple Mail, Spark, eM Client, Thunderbird, Android-Samsung, Android-Mail ([Microsoft Learn](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/manage-app-consent-policies)). IMAP does not avoid the gate, and publisher verification does not lift it.
 - **Rule.** The product never reuses another application's client ID and never takes tokens from a browser session. A work tenant connects through admin consent, preferably a single-user grant (`consentType=Principal`).
 - **Owner decision (2026-11-23).** v1 is built without the work mailbox, on the personal Outlook and Todoist; the work tenant can be connected later without an architecture change.
+- **Owner decision (2026-11-24, D7).** The work mailbox comes in through the local bridge reading Outlook on the web in the user's signed-in browser (design §5.1, spike S5). A first probe: the mailbox opened signed in, but a hidden tab rendered no message list (`visibilityState: hidden`, 52 characters of body text), so the read brings the tab to the front.
 
 ## S2 — Yahoo Mail (2026-11-22)
 

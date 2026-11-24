@@ -21,6 +21,7 @@ Protocol), so an external LLM can do the same work a human does in the UI.
 | D4 | Report delivery: UI + MCP + Web Push (PWA) | No email/Discord delivery in v1 |
 | D5 | LLM cost: platform key with a per-user daily quota by default; a user's own Anthropic key lifts the quota | Quota metering and BYO-key storage (AC-7.5, AC-7.6) |
 | D6 | Gmail API in Google "testing" mode for v1 (≤100 named users, 7-day refresh tokens); verification before public launch | Gmail source needs periodic reconnect (AC-2.4 covers it) |
+| D7 | A work mailbox whose tenant blocks user consent is read by the local bridge through Outlook on the web in the user's own signed-in browser (owner, 2026-11-24) | The bridge drives the browser UI the way a person reads mail; it never takes cookies or tokens out of the browser. Works only while the PC and the browser are on; the mail tab comes to the front for the read, because a hidden tab renders no message list |
 
 ### Glossary
 
@@ -44,6 +45,7 @@ Protocol), so an external LLM can do the same work a human does in the UI.
 | Discord | Bot in servers the user adds it to + DMs sent to the bot | Discord does not let a bot read a user's personal DMs; user tokens break the ToS |
 | Yahoo Mail | IMAP with OAuth (`mail-r`); no app passwords (owner, 2026-11-22) | Needs Yahoo's reviewed commercial access: product domain, privacy policy on it, approval (S2) |
 | ProtonMail | IMAP via Proton Bridge on the user's PC, through the local bridge | Needs a paid Proton plan and the PC on at collection time |
+| Outlook on the web (work mailbox, D7) | The local bridge reads the mailbox UI in the user's signed-in browser through a browser-automation MCP server | For tenants that block consent to Graph mail scopes; the PC and browser must be on at collection time; depends on the Outlook web markup (S5) |
 
 ## 3. User stories and acceptance criteria
 
@@ -62,6 +64,8 @@ Protocol), so an external LLM can do the same work a human does in the UI.
 - AC-2.5 THE SYSTEM SHALL list the channels of each source so the user can include or exclude each one.
 - AC-2.6 IF a work tenant requires admin consent THEN THE SYSTEM SHALL mark the source `needs_admin_consent`, name the blocked scopes, offer the admin-consent link, and keep collecting the other sources.
 - AC-2.7 THE SYSTEM SHALL offer the Teams connector only for work/school accounts.
+- AC-2.8 WHERE a paired bridge has a browser-automation MCP server configured THE SYSTEM SHALL offer an "Outlook on the web" source; WHEN a collection run includes it THE SYSTEM SHALL have the bridge read the messages newer than the source cursor from the mailbox UI and ingest them as `mail` items; IF the bridge does not answer within the run's wait limit or the mailbox is signed out THEN THE SYSTEM SHALL mark only that source as failed for the run, name the reason, and keep the others.
+- AC-2.9 THE SYSTEM SHALL NOT read, store or transmit browser cookies, session storage or access tokens for any source.
 
 ### US-3 Categories and Todoist binding
 
