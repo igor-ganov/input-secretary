@@ -116,3 +116,18 @@ Result: **5/5 tests pass**, `tsc --noEmit` clean (TypeScript 7.0.2, strict + `ex
 
 - **A2A**: add "Worker compatibility flag `nodejs_compat` (SDK uses `Buffer`)", "A2A task store = custom `TaskStore` on the tenant DO", and "v0.3 clients are rejected (no `legacyCompat`) unless a need appears". Path and header in §8 are confirmed as written.
 - **ACP**: replace "version pinned at implementation" with "`@agentclientprotocol/sdk@2.9.1`, ACP v1 stable entrypoint only (v2 Preview excluded)".
+
+## S5 — Outlook on the web through a browser-automation MCP (2026-11-24)
+
+Status: **markup recorded; reading the opened message and scrolling are not yet probed**. Tools used: `browser_open_tab`, `browser_activate_tab`, `browser_query`, `browser_snapshot`, `browser_close_tab`; no script evaluation.
+
+Findings:
+
+- The mailbox opened signed in, with no prompt. The web app now redirects `outlook.office.com/mail/` to `outlook.cloud.microsoft/mail/`.
+- In a tab that is not in front (the agent window included) the list does not render: only the shell, ribbon and the "Focused / Other" tabs are in the DOM. After `browser_activate_tab` the list is there at once.
+- List rows are `[data-convid]` elements with `role="option"`. The row's `aria-label` carries, in order: state flags (`Unread`, `Collapsed`, `Pinned`, `Has attachments`, `Replied`, `Mentioned`), senders, subject, date, then a preview text. The row's text gives initials, senders, subject and, for unread rows, the message count and time.
+- The list is virtualised: 7 rows were in the DOM, so the reader must scroll and collect until it reaches the cursor.
+- Pinned conversations come first, out of date order. **Amendment to design §5.1**: "read top-down until the cursor" becomes "collect rows until the first unpinned row older than the cursor; compare pinned rows by their date".
+- The list holds conversations, not messages; the id is the conversation id. **Amendment to design §5.1**: the cursor keeps conversation ids with their last-activity time; a conversation reappears as new input when its time moves past the cursor.
+- The "Focused / Other" split hides part of the inbox; the reader must read both tabs or the user must turn the split off.
+- The probe listed 7 rows with their labels into the session transcript, beyond "counts only"; nothing of it is in the repository.
